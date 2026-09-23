@@ -11,6 +11,10 @@ void llama_model_dflash::load_arch_hparams(llama_model_loader & ml) {
     hparams.f_final_logit_softcapping = 0.0f;
     ml.get_key(LLM_KV_FINAL_LOGIT_SOFTCAPPING,     hparams.f_final_logit_softcapping, false);
 
+    // Optional DFlash V projection scale.
+    // MiMo-V2.6 DFlash: 0.612
+    ml.get_key(LLM_KV_ATTENTION_VALUE_SCALE, hparams.f_attn_value_scale, false);
+
     // drafts for M-RoPE targets carry degenerate sections [n_rot/2, 0, 0, 0]
     ml.get_key_or_arr(LLM_KV_ROPE_DIMENSION_SECTIONS, hparams.rope_sections, 4, false);
 
@@ -628,6 +632,10 @@ llama_model_dflash::graph<false>::graph(const llama_model & model, const llm_gra
             Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens);
             Vcur = ggml_reshape_3d(ctx0, Vcur, n_embd_head, n_head_kv, n_tokens);
 
+            if (hparams.f_attn_value_scale > 0.0f && hparams.f_attn_value_scale != 1.0f) {
+                Vcur = ggml_scale(ctx0, Vcur, hparams.f_attn_value_scale);
+            }
+
             Kcur = build_norm(Kcur, layer.attn_k_norm, NULL, LLM_NORM_RMS, il);
             Kcur = build_rope(Kcur, inp_pos);
             cb(Kcur, "Kcur_injected", il);
@@ -712,6 +720,10 @@ llama_model_dflash::graph<false>::graph(const llama_model & model, const llm_gra
         Qcur = ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head,    n_tokens);
         Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens);
         Vcur = ggml_reshape_3d(ctx0, Vcur, n_embd_head, n_head_kv, n_tokens);
+
+        if (hparams.f_attn_value_scale > 0.0f && hparams.f_attn_value_scale != 1.0f) {
+            Vcur = ggml_scale(ctx0, Vcur, hparams.f_attn_value_scale);
+        }
 
         Qcur = build_norm(Qcur, layer.attn_q_norm, NULL, LLM_NORM_RMS, il);
         Kcur = build_norm(Kcur, layer.attn_k_norm, NULL, LLM_NORM_RMS, il);

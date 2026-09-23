@@ -103,6 +103,9 @@ llama_model_mimo2::graph::graph(const llama_model & model, const llm_graph_param
     const bool crop_last_layer = inp_out_ids && (!emit_h_nextn || cparams.embeddings_nextn_masked);
 
     for (int il = 0; il < n_layer; ++il) {
+        // expose per-layer residual/input for DFlash target feature extraction
+        res->t_layer_inp[il] = inpL;
+
         ggml_tensor * inpSA = inpL;
 
         uint32_t n_head_l    = hparams.n_head(il);
