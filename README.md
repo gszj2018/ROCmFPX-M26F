@@ -1,3 +1,66 @@
+# Patched ROCmFPX llama.cpp for MiMo-V2.6-Flash Inference on Strix Halo
+
+## Highlights
+
+- Enhanced tool calling compatibility. Compatible with coding agents.
+  - Tested with [Pi Coding Agent](https://github.com/earendil-works/pi).  
+  > Note: direct connection to `llama-server`'s HTTP endpoint is buggy.  
+  > You may need an HTTP reverse proxy or local LLM gateway to handle keepalived connections for agentic use.
+- Experimental: DFlash drafter.
+
+## LIMITATIONS
+
+- **No MTP support**.
+  - This fork **won't load** GGUF with MTP layers.
+  - You may need to create an MTP-removed GGUF from the [official checkpoint](https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Flash-RL) using [a patched converter](https://github.com/gszj2018/llama-cpp-M26F-gguf-cvt/tree/m26f-patch).
+  - Once the converted GGUF has been created, you can use `llama-quantize` built from **this fork** to create a quantized GGUF.
+- Support for DFlash drafter is **experimental** — may experience severe throughput degradation.
+  - Currently, only highly deterministic tasks can achieve increased throughput.
+  - Example prompts below:
+    ```
+    Output integers from 1 to 200, one per line, without adding any other text.
+    输出从 1 到 200 的整数，每行一个，不要添加其他文字。
+    Print a 9x9 multiplication table. Repeat 10 times without adding any other text.
+    写九九乘法表十遍，不要输出其他内容。
+    ```
+
+## Build
+
+Example for Strix Halo:
+
+```bash
+mkdir build; cd build
+cmake .. -GNinja \
+  -DGGML_HIP=ON -DGGML_VULKAN=OFF -DGGML_CUDA=OFF \
+  -DCMAKE_HIP_ARCHITECTURES=gfx1151 -DGPU_TARGETS=gfx1151 \
+  -DGGML_HIP_ROCMI4_W4A4=ON -DGGML_HIP_FORCE_MMQ=ON -DGGML_HIP_ROCWMMA_FATTN=ON \
+  -DLLAMA_BUILD_SERVER=ON -DGGML_BUILD_TESTS=OFF \
+  -DGGML_NATIVE=ON -DGGML_OPENMP=ON -DGGML_LTO=ON \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target llama-cli llama-server llama-quantize llama-imatrix llama-gguf -j 30
+```
+
+## Usage
+
+OpenAI-compatible API serving (for agentic use):
+```bash
+/path/to/build/bin/llama-server --host 0.0.0.0 --port 9931 \
+  -m /path/to/model.gguf --mmproj /path/to/mmproj.gguf \
+  -c 200000 -n 40000 -dev ROCm0 \
+  --reasoning-effort high --temp 1.0 --top-p 0.95
+```
+
+CLI testing (with DFlash drafter):
+```bash
+/path/to/build/bin/llama-cli \
+  -m /path/to/model.gguf --mmproj /path/to/mmproj.gguf \
+  -c 200000 -n 40000 -dev ROCm0 \
+  --spec-type draft-dflash -md /path/to/dflash-model.gguf \
+  --spec-draft-n-max 7 --cache-type-k-draft f16 --cache-type-v-draft f16
+```
+
+---
+
 ![ROCmFPX — Max Performance. Open Power.](media/rocmfpx-banner.png)
 
 # ROCmFPX llama.cpp
