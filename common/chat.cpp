@@ -3483,6 +3483,13 @@ std::optional<common_chat_params> common_chat_try_specialized_template(
         const common_chat_template &          tmpl,
         const std::string &                   src,
         autoparser::generation_params & params) {
+
+    // MiMo-V2.6-Flash-RL - bypass
+    if (src.find("<|mimo_audio_start|>") != std::string::npos) {
+        LOG_DBG("Bypass specialized template for MiMo-V2.6-Flash-RL\n");
+        return std::nullopt;
+    }
+
     // Ministral/Mistral Large 3 - uses special reasoning structure fixes, can't use autoparser
     // Note: Mistral Small 3.2 uses [CALL_ID] which Ministral doesn't have, so we can distinguish them
     if (src.find("[SYSTEM_PROMPT]") != std::string::npos && src.find("[TOOL_CALLS]") != std::string::npos &&

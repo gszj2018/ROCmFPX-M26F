@@ -201,6 +201,16 @@ static std::vector<std::function<void(const common_chat_template & tmpl, autopar
               LOG_DBG(ANSI_ORANGE "[Patch: Bailing V3]\n" ANSI_RESET);
           }
       },
+      // MiMo-V2.6-Flash-RL
+      [](const common_chat_template & tmpl, autoparser & analysis) -> void {
+          if (tmpl.src.find("<|mimo_audio_start|>") != std::string::npos) {
+              analysis.tools.arguments.value_prefix = trim_whitespace(analysis.tools.arguments.value_prefix);
+              analysis.tools.arguments.value_suffix = trim_whitespace(analysis.tools.arguments.value_suffix);
+              analysis.tools.arguments.separator    = trim_whitespace(analysis.tools.arguments.separator);
+              analysis.tools.arguments.tolerate_intertag_whitespace = true;
+              LOG_DBG(ANSI_ORANGE "[Patch: MiMo-V2.6-Flash-RL]\n" ANSI_RESET);
+          }
+      },
 
     });
 
